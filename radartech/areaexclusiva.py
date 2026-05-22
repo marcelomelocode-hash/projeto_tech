@@ -1,7 +1,7 @@
 import flet as ft
 import asyncio
 
-from cadastroTech import criar_radar
+from components.radar import criar_radar
 
 
 def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str) -> None:

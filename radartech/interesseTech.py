@@ -1,6 +1,6 @@
 import asyncio
 import flet as ft
-from cadastroTech import criar_radar
+from components.radar import criar_radar
 
 def show_interesse_screen(page: ft.Page) -> None:
     page.clean()

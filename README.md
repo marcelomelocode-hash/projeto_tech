@@ -31,7 +31,19 @@ projeto_tech/
     ├── perfil.py
     ├── estrategia.py
     ├── interesseTech.py
-    └── usuario.py
+    ├── areaexclusiva.py
+    ├── usuario.py
+    ├── components/
+    │   └── radar.py
+    └── screens/
+        ├── login.py
+        ├── cadastro.py
+        ├── tendencia.py
+        ├── perfil.py
+        ├── estrategia.py
+        ├── interesse.py
+        ├── area_exclusiva.py
+        └── usuario.py
 ```
 
 ---
@@ -71,7 +83,7 @@ python radartech/main.py
 
 #### Função principal
 - A função [`main(page: ft.Page)`](radartech/main.py:9) configura a janela (título, dimensões, alinhamento e cor de fundo).
-- Em seguida, reutiliza o radar criado por [`criar_radar()`](radartech/cadastroTech.py:9).
+- Em seguida, reutiliza o radar criado por [`criar_radar()`](radartech/components/radar.py:5).
 
 #### Tela de loading
 - Cria os componentes visuais:
@@ -102,7 +114,7 @@ python radartech/main.py
   - Senha ([`ft.TextField(password=True, ...)`](radartech/loginTech.py:26))
 
 #### Validação de acesso
-- Na função [`entrar(...)`](radartech/loginTech.py:38):
+- Na função [`entrar(...)`](radartech/loginTech.py:39):
   - Lê usuário/senha simulados em [`USUARIO_TESTE_CADASTRO`](radartech/cadastroTech.py:7)
   - Compara com os valores digitados
   - Em sucesso: abre [`show_tendencia_screen(page, "RADARTECH")`](radartech/loginTech.py:48)
@@ -121,25 +133,25 @@ python radartech/main.py
 
 ---
 
-### 3) Cadastro + Componente Radar: [`cadastroTech.py`](radartech/cadastroTech.py)
+### 3) Cadastro: [`cadastroTech.py`](radartech/cadastroTech.py)
 
-Este arquivo concentra **duas responsabilidades**:
-1. Gerar o componente visual do radar
-2. Gerenciar o fluxo da tela de cadastro
+Agora o projeto separa responsabilidades:
+1. Componente visual do radar em [`criar_radar()`](radartech/components/radar.py:5)
+2. Fluxo da tela de cadastro em [`show_cadastro_screen(page)`](radartech/cadastroTech.py:40)
 
 #### Persistência temporária (simulada)
 - [`USUARIO_TESTE_CADASTRO`](radartech/cadastroTech.py:7) é um dicionário global para guardar usuário/senha em memória.
 - Serve apenas para demonstração, sem banco real.
 
 #### Componente reutilizável do radar
-- A função [`criar_radar()`](radartech/cadastroTech.py:9) monta um [`ft.Stack`](radartech/cadastroTech.py:55) com:
+- A função [`criar_radar()`](radartech/components/radar.py:5) monta um [`ft.Stack`](radartech/components/radar.py:53) com:
   - Círculos/bordas
   - Linhas angulares (geradas por list comprehension)
   - Ponteiro central rotativo
 - Retorna **dois elementos**: radar e ponteiro, para que cada tela controle a animação.
 
 #### Tela de cadastro
-- A função [`show_cadastro_screen(page)`](radartech/cadastroTech.py:89) cria campos de:
+- A função [`show_cadastro_screen(page)`](radartech/cadastroTech.py:40) cria campos de:
   - Nome
   - E-mail
   - DDD + telefone
@@ -147,7 +159,7 @@ Este arquivo concentra **duas responsabilidades**:
   - Aceite de termos LGPD
 
 #### Validações
-- Função [`validar_campos()`](radartech/cadastroTech.py:123):
+- Função [`validar_campos()`](radartech/cadastroTech.py:74):
   - Nome com ao menos 2 partes
   - E-mail com `@`
   - DDD com 2 dígitos
@@ -158,13 +170,13 @@ Este arquivo concentra **duas responsabilidades**:
   - Termos aceitos
 
 #### Barra de progresso de cadastro
-- [`atualizar_progresso(...)`](radartech/cadastroTech.py:160) calcula percentual com base nas validações.
+- [`atualizar_progresso(...)`](radartech/cadastroTech.py:111) calcula percentual com base nas validações.
 - Quando chega em 100%:
-  - Salva os dados em [`USUARIO_TESTE_CADASTRO`](radartech/cadastroTech.py:179)
-  - Dispara [`processar_redirecionamento()`](radartech/cadastroTech.py:185)
+  - Salva os dados em [`USUARIO_TESTE_CADASTRO`](radartech/cadastroTech.py:130)
+  - Dispara [`processar_redirecionamento()`](radartech/cadastroTech.py:136)
 
 #### Redirecionamento por perfil
-- Em [`processar_redirecionamento()`](radartech/cadastroTech.py:185):
+- Em [`processar_redirecionamento()`](radartech/cadastroTech.py:136):
   - E-mail prefixo “radar” → tenta abrir módulo de interesse
   - Fluxo comum → volta para login
 
@@ -195,7 +207,7 @@ Este arquivo concentra **duas responsabilidades**:
 1. Inicialização em [`main.py`](radartech/main.py)
 2. Loading animado
 3. Login em [`show_login_screen()`](radartech/loginTech.py:6)
-4. Cadastro em [`show_cadastro_screen()`](radartech/cadastroTech.py:89), se necessário
+4. Cadastro em [`show_cadastro_screen()`](radartech/cadastroTech.py:40), se necessário
 5. Tendências em [`show_tendencia_screen()`](radartech/tendencia.py:6)
 
 ---
@@ -214,6 +226,6 @@ Próximas evoluções esperadas:
 
 ## Observações Técnicas
 
-- O projeto já possui boa organização por telas e funções.
+- O projeto foi reorganizado com separação entre telas ([`radartech/screens/`](radartech/screens)) e componentes reutilizáveis ([`radartech/components/`](radartech/components)).
 - O uso de [`page.run_task(...)`](radartech/main.py:115) permite animações assíncronas sem travar interface.
 - O dicionário global de cadastro é útil para protótipo, mas deve ser substituído por persistência real em produção.

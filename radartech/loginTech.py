@@ -1,6 +1,7 @@
 import flet as ft
 import asyncio
-from cadastroTech import criar_radar, show_cadastro_screen, USUARIO_TESTE_CADASTRO
+from components.radar import criar_radar
+from cadastroTech import show_cadastro_screen, USUARIO_TESTE_CADASTRO
 from tendencia import show_tendencia_screen
 
 def show_login_screen(page: ft.Page) -> None:
