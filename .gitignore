@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+
+# Flet/packaging outputs
+build/
+dist/
+
+# IDE/system
+.vscode/
+.DS_Store
+Thumbs.db

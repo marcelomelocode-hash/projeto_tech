@@ -2,6 +2,11 @@ import flet as ft
 import asyncio
 
 from cadastroTech import criar_radar
+from cadastroTech import show_cadastro_screen, USUARIO_TESTE_CADASTRO
+
+
+# Histórico mock do usuário na área exclusiva
+HISTORICO_USUARIO: list[dict[str, str]] = []
 
 
 def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str) -> None:
@@ -12,6 +17,7 @@ def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str) -> None:
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
     radar, ponteiro = criar_radar()
+    HISTORICO_USUARIO.append({"jornada": jornada, "curso": curso})
 
     links_video = {
         "Como desenvolver sua própria IA": "https://www.youtube.com/watch?v=aircAruvnKk",
@@ -57,6 +63,87 @@ def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str) -> None:
         from interesseTech import show_interesse_screen
 
         show_interesse_screen(page)
+
+    def abrir_atualizar_cadastro(_: ft.ControlEvent) -> None:
+        show_cadastro_screen(page)
+
+    def excluir_dados_cadastrais(_: ft.ControlEvent) -> None:
+        HISTORICO_USUARIO.clear()
+        USUARIO_TESTE_CADASTRO["usuario"] = ""
+        USUARIO_TESTE_CADASTRO["senha"] = ""
+
+        page.snack_bar = ft.SnackBar(ft.Text("dados pessoais excluídos do sistema"))
+        page.snack_bar.open = True
+        page.update()
+
+    box_atualizar = ft.Container(
+        width=182,
+        padding=10,
+        border_radius=10,
+        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.CYAN_ACCENT_400),
+        ink=True,
+        on_click=abrir_atualizar_cadastro,
+        content=ft.Row(
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=8,
+            controls=[
+                ft.Icon(ft.Icons.EDIT_DOCUMENT, color=ft.Colors.CYAN_ACCENT_200, size=13),
+                ft.Text(
+                    "atualizar dados cadastrais",
+                    color=ft.Colors.WHITE,
+                    size=9,
+                    weight=ft.FontWeight.BOLD,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+            ],
+        ),
+    )
+
+    box_excluir = ft.Container(
+        width=182,
+        padding=10,
+        border_radius=10,
+        bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.RED_400),
+        ink=True,
+        on_click=excluir_dados_cadastrais,
+        content=ft.Row(
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=8,
+            controls=[
+                ft.Icon(ft.Icons.DELETE_FOREVER, color=ft.Colors.RED_ACCENT_100, size=13),
+                ft.Text(
+                    "excluir dados cadastrais",
+                    color=ft.Colors.WHITE,
+                    size=9,
+                    weight=ft.FontWeight.BOLD,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+            ],
+        ),
+    )
+
+    box_atualizar_interesse = ft.Container(
+        width=182,
+        padding=10,
+        border_radius=10,
+        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.CYAN_ACCENT_400),
+        ink=True,
+        on_click=atualizar_interesse,
+        content=ft.Row(
+            alignment=ft.MainAxisAlignment.CENTER,
+            spacing=8,
+            controls=[
+                ft.Icon(ft.Icons.TUNE, color=ft.Colors.CYAN_ACCENT_200, size=13),
+                ft.Text(
+                    "atualizar interesse",
+                    color=ft.Colors.WHITE,
+                    size=9,
+                    weight=ft.FontWeight.BOLD,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+            ],
+        ),
+    )
 
     card_aula = ft.Container(
         width=250,
@@ -133,6 +220,7 @@ def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str) -> None:
                                 ),
                                 on_click=abrir_checklist,
                                 width=260,
+                                height=96,
                                 icon=ft.Icons.OPEN_IN_NEW,
                                 style=ft.ButtonStyle(
                                     side=ft.BorderSide(1.5, ft.Colors.CYAN_ACCENT_400),
@@ -149,13 +237,15 @@ def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str) -> None:
                                 width=130,
                                 style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=18)),
                             ),
-                            ft.TextButton(
-                                content=ft.Text("Atualizar Interesse", size=11, color=ft.Colors.WHITE54),
-                                on_click=atualizar_interesse,
-                                style=ft.ButtonStyle(
-                                    overlay_color=ft.Colors.with_opacity(0.08, ft.Colors.CYAN_ACCENT_400),
-                                ),
+                            ft.Row(
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                spacing=8,
+                                controls=[
+                                    box_atualizar,
+                                    box_excluir,
+                                ],
                             ),
+                            box_atualizar_interesse,
                         ],
                     ),
                 ]
