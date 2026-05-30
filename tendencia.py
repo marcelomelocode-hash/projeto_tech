@@ -1,8 +1,46 @@
 import asyncio
 import flet as ft
 from cadastroTech import criar_radar
-from dados_mock import top_n_interesses
+from conexao import conectar, fechar_conexao
 
+def obter_top_interesses_real():
+    conexao = conectar()
+    if not conexao:
+        return []
+        
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("SELECT interesses FROM tbl_cadastro WHERE interesses IS NOT NULL AND interesses != ''")
+        linhas = cursor.fetchall()
+        
+        if not linhas:
+            return []
+        
+        contagem: dict[str, int] = {}
+        for (interesses_str,) in linhas:
+            lista = [i.strip() for i in interesses_str.split(",") if i.strip()]
+            for interesse in lista:
+                contagem[interesse] = contagem.get(interesse, 0) + 1
+        
+        if not contagem:
+            return []
+        
+        ordenados = sorted(contagem.items(), key=lambda item: item[1], reverse=True)[:5]
+        total_votos = sum(contagem.values())
+        
+        dados_formatados = []
+        for nome_interesse, votos in ordenados:
+            percentual = (votos / total_votos) * 100
+            dados_formatados.append((nome_interesse, votos, percentual))
+            
+        return dados_formatados
+        
+    except Exception as e:
+        print(f"Erro ao computar métricas no MySQL: {e}")
+        return []
+    finally:
+        cursor.close()
+        fechar_conexao(conexao)
 
 def show_tendencia_screen(page: ft.Page, nome_usuario: str = "") -> None:
     page.clean()
@@ -15,44 +53,52 @@ def show_tendencia_screen(page: ft.Page, nome_usuario: str = "") -> None:
     radar, ponteiro = criar_radar()
     nome = (nome_usuario or "RADARTECH").upper()
 
-    top_cursos = top_n_interesses(5)
+    top_cursos = obter_top_interesses_real()
     barras: list[ft.Container] = []
     altura_total = 180
     largura_barra = 42
 
-    for idx, (curso, votos, percentual) in enumerate(top_cursos):
-        altura_fill = max(12, int((percentual / 100) * altura_total))
-        nome_vertical = "\n".join(list(curso[:18]))
-
+    if not top_cursos:
         barras.append(
             ft.Container(
-                width=largura_barra,
-                height=altura_total,
-                bgcolor=ft.Colors.with_opacity(0.18, ft.Colors.CYAN_ACCENT_200),
-                border=ft.border.all(1, ft.Colors.with_opacity(0.5, ft.Colors.CYAN_ACCENT_400)),
-                border_radius=14,
-                alignment=ft.alignment.Alignment(0, 1),
-                clip_behavior=ft.ClipBehavior.HARD_EDGE,
-                tooltip=f"{curso}: {votos} votos ({percentual:.1f}%)",
-                content=ft.Container(
-                    width=largura_barra,
-                    height=altura_fill,
-                    bgcolor=ft.Colors.CYAN_ACCENT_400 if idx == 0 else ft.Colors.with_opacity(0.52, ft.Colors.CYAN_ACCENT_400),
-                    border_radius=14,
-                    alignment=ft.alignment.Alignment(0, 0),
-                    padding=ft.padding.symmetric(horizontal=2, vertical=4),
-                    content=ft.Text(
-                        nome_vertical,
-                        size=8,
-                        color=ft.Colors.BLACK,
-                        weight=ft.FontWeight.BOLD,
-                        text_align=ft.TextAlign.CENTER,
-                        max_lines=18,
-                        overflow=ft.TextOverflow.CLIP,
-                    ),
-                ),
+                content=ft.Text("Nenhum dado computado. Aguardando cadastros...", color=ft.Colors.WHITE54, size=12),
+                padding=20
             )
         )
+    else:
+        for idx, (curso, votos, percentual) in enumerate(top_cursos):
+            altura_fill = max(12, int((percentual / 100) * altura_total))
+            nome_vertical = "\n".join(list(curso[:18]))
+
+            barras.append(
+                ft.Container(
+                    width=largura_barra,
+                    height=altura_total,
+                    bgcolor=ft.Colors.with_opacity(0.18, ft.Colors.CYAN_ACCENT_200),
+                    border=ft.border.all(1, ft.Colors.with_opacity(0.5, ft.Colors.CYAN_ACCENT_400)),
+                    border_radius=14,
+                    alignment=ft.alignment.Alignment(0, 1),
+                    clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                    tooltip=f"{curso}: {votos} votos ({percentual:.1f}%)",
+                    content=ft.Container(
+                        width=largura_barra,
+                        height=altura_fill,
+                        bgcolor=ft.Colors.CYAN_ACCENT_400 if idx == 0 else ft.Colors.with_opacity(0.52, ft.Colors.CYAN_ACCENT_400),
+                        border_radius=14,
+                        alignment=ft.alignment.Alignment(0, 0),
+                        padding=ft.padding.symmetric(horizontal=2, vertical=4),
+                        content=ft.Text(
+                            nome_vertical,
+                            size=8,
+                            color=ft.Colors.BLACK,
+                            weight=ft.FontWeight.BOLD,
+                            text_align=ft.TextAlign.CENTER,
+                            max_lines=18,
+                            overflow=ft.TextOverflow.CLIP,
+                        ),
+                    ),
+                )
+            )
 
     def abrir_perfil(_: ft.ControlEvent) -> None:
         from perfil import show_perfil_screen
@@ -117,9 +163,12 @@ def show_tendencia_screen(page: ft.Page, nome_usuario: str = "") -> None:
     async def animar_ponteiro() -> None:
         angulo = 0.0
         while True:
-            angulo += 0.08
-            ponteiro.rotate = ft.Rotate(angulo, alignment=ft.alignment.Alignment(0, 0))
-            page.update()
-            await asyncio.sleep(0.03)
+            try:
+                angulo += 0.08
+                ponteiro.rotate = ft.Rotate(angulo, alignment=ft.alignment.Alignment(0, 0))
+                page.update()
+                await asyncio.sleep(0.03)
+            except Exception:
+                break
 
     page.run_task(animar_ponteiro)

@@ -2,8 +2,9 @@ import math
 import flet as ft
 import asyncio
 import re
+import mysql.connector  
+from db import get_db_connection
 
-# Dicionário global para simular persistência temporária
 USUARIO_TESTE_CADASTRO: dict[str, str] = {"usuario": "", "senha": ""}
 
 def criar_radar() -> tuple[ft.Stack, ft.Container]:
@@ -96,22 +97,22 @@ def show_cadastro_screen(page: ft.Page) -> None:
 
     radar, ponteiro = criar_radar()
 
-    # UI Elements
     titulo = ft.Text("RADARTECH", size=32, weight=ft.FontWeight.BOLD, color=ft.Colors.CYAN_ACCENT_200)
     subtitulo = ft.Text("CRIE SUA CONTA", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
 
-    nome = ft.TextField(label="Nome completo", width=320, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400)
-    email = ft.TextField(label="E-mail", width=320, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400)
-    ddd = ft.TextField(label="DDD", width=90, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400)
-    telefone = ft.TextField(label="Telefone", width=220, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400)
-    senha = ft.TextField(label="Senha", width=320, password=True, can_reveal_password=True, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400)
-    confirmar_senha = ft.TextField(label="Confirmar senha", width=320, password=True, can_reveal_password=True, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400)
+    nome = ft.TextField(label="Nome completo", width=320, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400, on_change=lambda e: atualizar_progresso())
+    email = ft.TextField(label="E-mail", width=320, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400, on_change=lambda e: atualizar_progresso())
+    ddd = ft.TextField(label="DDD", width=90, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400, on_change=lambda e: atualizar_progresso())
+    telefone = ft.TextField(label="Telefone", width=220, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400, on_change=lambda e: atualizar_progresso())
+    senha = ft.TextField(label="Senha", password=True, can_reveal_password=True, width=320, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400, on_change=lambda e: atualizar_progresso())
+    confirmar_senha = ft.TextField(label="Confirmar senha", password=True, can_reveal_password=True, width=320, color=ft.Colors.WHITE, border_color=ft.Colors.CYAN_ACCENT_400, on_change=lambda e: atualizar_progresso())
 
     aceitar_termos = ft.Checkbox(
         value=False,
         label="Ao acessar, você concorda com nossos Termos de Uso e Políticas de Privacidade (LGPD)",
         label_style=ft.TextStyle(size=10, color=ft.Colors.WHITE54),
         active_color=ft.Colors.CYAN_ACCENT_400,
+        on_change=lambda e: atualizar_progresso()
     )
     
     status = ft.Text(value="", color=ft.Colors.RED_300)
@@ -120,22 +121,17 @@ def show_cadastro_screen(page: ft.Page) -> None:
 
     redirecionando = {"ok": False}
 
-    def validar_campos() -> tuple[list[bool], list[str], bool]:
-        # Validação Nome
+    def validar_campos() -> tuple[list[bool], bool]:
         nome_ok = bool(nome.value and len(nome.value.strip().split()) >= 2)
-        
-        # Validação E-mail e Detecção de Prefixo "radar"
         email_valor = (email.value or "").strip().lower()
         email_ok = bool(email_valor and "@" in email_valor)
         email_radar = email_valor.startswith("radar")
 
-        # Validação Telefone
         ddd_valor = re.sub(r"\D", "", ddd.value or "")
         ddd_ok = len(ddd_valor) == 2
         tel_valor = re.sub(r"\D", "", telefone.value or "")
         telefone_ok = ddd_ok and len(tel_valor) >= 8
 
-        # Validação Senha (Flexível para radar)
         senha_valor = senha.value or ""
         if email_radar:
             senha_ok = bool(senha_valor.strip())
@@ -145,20 +141,20 @@ def show_cadastro_screen(page: ft.Page) -> None:
         confirmar_ok = bool(confirmar_senha.value and confirmar_senha.value == senha_valor)
         termos_ok = True if email_radar else bool(aceitar_termos.value)
 
-        itens = [nome_ok, email_ok, telefone_ok, senha_ok, confirmar_ok, termos_ok]
-        
-        pendencias = []
-        if not nome_ok: pendencias.append("Nome e Sobrenome")
-        if not email_ok: pendencias.append("E-mail válido")
-        if not ddd_ok or not telefone_ok: pendencias.append("Telefone completo")
-        if not senha_ok and not email_radar: pendencias.append("Senha forte")
-        if not confirmar_ok: pendencias.append("Senhas iguais")
-        if not termos_ok and not email_radar: pendencias.append("Aceitar termos")
+        return [nome_ok, email_ok, telefone_ok, senha_ok, confirmar_ok, termos_ok], email_radar
 
-        return itens, pendencias, email_radar
+    def obter_pendencias(itens: list[bool], email_radar: bool) -> list[str]:
+        pendencias = []
+        if not itens[0]: pendencias.append("Nome e Sobrenome")
+        if not itens[1]: pendencias.append("E-mail válido")
+        if not itens[2]: pendencias.append("Telefone completo")
+        if not itens[3] and not email_radar: pendencias.append("Senha forte")
+        if not itens[4]: pendencias.append("Senhas iguais")
+        if not itens[5] and not email_radar: pendencias.append("Aceitar termos")
+        return pendencias
 
     def atualizar_progresso(_: ft.ControlEvent | None = None) -> None:
-        itens, pendencias, email_radar = validar_campos()
+        itens, email_radar = validar_campos()
         progresso = sum(itens) / len(itens)
         percentual = int(progresso * 100)
         
@@ -167,83 +163,94 @@ def show_cadastro_screen(page: ft.Page) -> None:
 
         if percentual < 100:
             redirecionando["ok"] = False
+            pendencias = obter_pendencias(itens, email_radar)
             status.value = "Pendências: " + " | ".join(pendencias) if percentual > 0 else ""
             status.color = ft.Colors.WHITE54
             status.size = 10
+            page.update()
         elif not redirecionando["ok"]:
             redirecionando["ok"] = True
-            status.value = "100% - Processando integração..."
+            status.value = "100% - Salvando no MySQL e avançando..."
             status.color = ft.Colors.GREEN_ACCENT_200
             status.size = 14
-            # Grava dados e inicia fluxo de saída
-            USUARIO_TESTE_CADASTRO["usuario"] = email.value.strip()
+            page.update()
+            
+            email_cadastro = email.value.strip().lower()
+            USUARIO_TESTE_CADASTRO["usuario"] = email_cadastro
             USUARIO_TESTE_CADASTRO["senha"] = senha.value.strip()
-            page.run_task(processar_redirecionamento)
 
-        page.update()
-
-    async def processar_redirecionamento() -> None:
-        await asyncio.sleep(1.0) # Delay para feedback visual
-        email_valor = (email.value or "").strip().lower()
-        
-        if not email_valor.startswith("radar"):
             try:
-                # INTEGRACAO COM INTERESSE TECH
-                from interesseTech import show_interesse_screen
-                show_interesse_screen(page)
-            except Exception as e:
-                status.value = f"Erro ao abrir interesseTech.py: {e}"
-                status.color = ft.Colors.RED_400
+                page.session.set("user_email", email_cadastro)
+            except Exception:
+                from db import get_session_store
+                get_session_store().set("user_email", email_cadastro)
+
+            telefone_completo = f"({re.sub(r'\D', '', ddd.value or '')}){re.sub(r'\D', '', telefone.value or '')}"
+            
+            try:
+                conexao = get_db_connection(include_database=True)
+                cursor = conexao.cursor()
+                
+                cursor.execute("SELECT id_cadastro FROM tbl_cadastro WHERE email_usuario = %s", (email_cadastro,))
+                if cursor.fetchone():
+                    status.value = "Este e-mail já está cadastrado."
+                    status.color = ft.Colors.RED_ACCENT_400
+                    redirecionando["ok"] = False
+                    page.update()
+                    cursor.close()
+                    conexao.close()
+                    return
+
+                cursor.execute(
+                    """INSERT INTO tbl_cadastro 
+                    (nome_completo, email_usuario, telefone_usuario, senha_usuario, aceitar_termos, curso) 
+                    VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (nome.value.strip(), email_cadastro, telefone_completo, senha.value.strip(), 1 if aceitar_termos.value else 0, "Python"),
+                )
+                conexao.commit()
+                cursor.close()
+                conexao.close()
+
+                if email_cadastro.startswith("radar"):
+                    from tendencia import show_tendencia_screen
+                    show_tendencia_screen(page, "RADARTECH")
+                else:
+                    from interesseTech import show_interesse_screen
+                    show_interesse_screen(page)
+
+            except Exception as err:
+                status.value = f"Erro no Banco: {err}"
+                status.color = ft.Colors.RED_ACCENT_400
+                redirecionando["ok"] = False
                 page.update()
-        else:
-            # FLUXO COMUM
-            from loginTech import show_login_screen
-            show_login_screen(page)
 
-    # Eventos de mudança
-    for field in [nome, email, ddd, telefone, senha, confirmar_senha]:
-        field.on_change = atualizar_progresso
-    aceitar_termos.on_change = atualizar_progresso
-
-    def voltar_login(_: ft.ControlEvent) -> None:
-        from loginTech import show_login_screen
-        show_login_screen(page)
-
-    # Montagem da tela
     page.add(
         ft.Container(
-            width=360,
-            padding=ft.padding.all(20),
+            padding=ft.padding.only(top=40, bottom=40),
             content=ft.Column(
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=15,
                 controls=[
-                    radar, titulo, subtitulo,
+                    radar, titulo, subtitulo, ft.Container(height=10),
                     nome, email,
-                    ft.Row([ddd, telefone], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
-                    senha, confirmar_senha,
-                    ft.Row([ft.Text("Já tem uma conta?", color="white70"), ft.TextButton("Entrar", on_click=voltar_login)], alignment=ft.MainAxisAlignment.CENTER),
-                    aceitar_termos,
-                    barra_progresso, progresso_texto,
-                    status
-                ]
+                    ft.Row(controls=[ddd, telefone], alignment=ft.MainAxisAlignment.CENTER, width=320),
+                    senha, confirmar_senha, ft.Container(content=aceitar_termos, width=320),
+                    ft.Container(height=10), barra_progresso, progresso_texto, status
+                ],
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=15
             )
         )
     )
-    
-    # Animação do Radar
-    async def animar_radar():
-        angulo = 0
+    page.update()
+
+    async def animar_radar_cadastro() -> None:
+        angulo = 0.0
         while True:
-            angulo += 0.1
-            ponteiro.rotate = ft.Rotate(angulo, alignment=ft.alignment.Alignment(0, 0))
-            page.update()
-            await asyncio.sleep(0.03)
+            try:
+                if not page.controls: break
+                angulo += 0.08
+                ponteiro.rotate = ft.Rotate(angulo, alignment=ft.alignment.Alignment(0, 0))
+                page.update()
+                await asyncio.sleep(0.03)
+            except Exception: break
 
-    page.run_task(animar_radar)
-
-# Se estiver rodando este arquivo diretamente para teste:
-if __name__ == "__main__":
-    def main(page: ft.Page):
-        show_cadastro_screen(page)
-    ft.app(target=main)
+    page.run_task(animar_radar_cadastro)

@@ -3,13 +3,12 @@ import asyncio
 
 from cadastroTech import criar_radar
 from cadastroTech import show_cadastro_screen, USUARIO_TESTE_CADASTRO
+from conexao import conectar, fechar_conexao
 
-
-# Histórico mock do usuário na área exclusiva
 HISTORICO_USUARIO: list[dict[str, str]] = []
 
 
-def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str) -> None:
+def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str, id_usuario: int = 1) -> None:
     page.clean()
     page.title = "Radar Tech - Área Exclusiva"
     page.bgcolor = ft.Colors.BLACK
@@ -56,24 +55,95 @@ def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str) -> None:
 
     def sair(_: ft.ControlEvent) -> None:
         from loginTech import show_login_screen
-
         show_login_screen(page)
 
     def atualizar_interesse(_: ft.ControlEvent) -> None:
         from interesseTech import show_interesse_screen
-
         show_interesse_screen(page)
 
     def abrir_atualizar_cadastro(_: ft.ControlEvent) -> None:
-        show_cadastro_screen(page)
+        def salvar_alteracoes(_: ft.ControlEvent) -> None:
+            if not txt_nome.value or not txt_telefone.value:
+                page.snack_bar = ft.SnackBar(ft.Text("Por favor, preencha todos os campos!"))
+                page.snack_bar.open = True
+                page.update()
+                return
+            
+            conexao = conectar()
+            if conexao:
+                cursor = conexao.cursor()
+                try:
+                    cursor.execute(
+                        """UPDATE tbl_cadastro 
+                           SET nome_completo = %s, telefone_usuario = %s 
+                           WHERE id_cadastro = %s""",
+                        (txt_nome.value, txt_telefone.value, id_usuario)
+                    )
+                    conexao.commit()
+                    dialogo_edicao.open = False
+                    page.snack_bar = ft.SnackBar(ft.Text("Cadastro atualizado com sucesso no MySQL!"))
+                    page.snack_bar.open = True
+                    page.update()
+                except Exception as erro:
+                    print("Erro ao atualizar dados no banco:", erro)
+                finally:
+                    cursor.close()
+                    fechar_conexao(conexao)
+
+        txt_nome = ft.TextField(label="Novo Nome Completo", color=ft.Colors.WHITE)
+        txt_telefone = ft.TextField(label="Novo Telefone", color=ft.Colors.WHITE)
+
+        dialogo_edicao = ft.AlertDialog(
+            title=ft.Text("Atualizar Dados Cadastrais", color=ft.Colors.WHITE),
+            content=ft.Column([txt_nome, txt_telefone], tight=True),
+            actions=[
+                ft.TextButton("Cancelar", on_click=lambda e: setattr(dialogo_edicao, 'open', False) or page.update()),
+                ft.ElevatedButton("Salvar", on_click=salvar_alteracoes, bgcolor=ft.Colors.CYAN_ACCENT_400, color=ft.Colors.BLACK)
+            ],
+            bgcolor=ft.Colors.GREY_900
+        )
+        page.overlay.append(dialogo_edicao)
+        dialogo_edicao.open = True
+        page.update()
 
     def excluir_dados_cadastrais(_: ft.ControlEvent) -> None:
-        HISTORICO_USUARIO.clear()
-        USUARIO_TESTE_CADASTRO["usuario"] = ""
-        USUARIO_TESTE_CADASTRO["senha"] = ""
+        def confirmar_exclusao(_: ft.ControlEvent) -> None:
+            conexao = conectar()
+            if conexao:
+                cursor = conexao.cursor()
+                try:
+                    cursor.execute("DELETE FROM tbl_usuario_cursos WHERE cadastro_id = %s", (id_usuario,))
+                    cursor.execute("DELETE FROM tbl_cadastro WHERE id_cadastro = %s", (id_usuario,))
+                    
+                    conexao.commit()
+                    
+                    HISTORICO_USUARIO.clear()
+                    USUARIO_TESTE_CADASTRO["usuario"] = ""
+                    USUARIO_TESTE_CADASTRO["senha"] = ""
 
-        page.snack_bar = ft.SnackBar(ft.Text("dados pessoais excluídos do sistema"))
-        page.snack_bar.open = True
+                    dialogo_confirmacao.open = False
+                    page.snack_bar = ft.SnackBar(ft.Text("Dados pessoais totalmente removidos do sistema."))
+                    page.snack_bar.open = True
+
+                    from loginTech import show_login_screen
+                    show_login_screen(page)
+                except Exception as erro:
+                    print("Erro ao excluir do banco de dados:", erro)
+                finally:
+                    cursor.close()
+                    fechar_conexao(conexao)
+
+        dialogo_confirmacao = ft.AlertDialog(
+            title=ft.Text("Confirmar Exclusão", color=ft.Colors.WHITE),
+            content=ft.Text("Deseja mesmo apagar suas informações do banco de dados de forma definitiva?", color=ft.Colors.WHITE),
+            actions=[
+                ft.TextButton("Cancelar", on_click=lambda e: setattr(dialogo_confirmacao, 'open', False) or page.update()),
+                ft.ElevatedButton("Confirmar Exclusão", on_click=confirmar_exclusao, bgcolor=ft.Colors.RED_ACCENT_400, color=ft.Colors.WHITE)
+            ],
+            bgcolor=ft.Colors.GREY_900
+        )
+        page.overlay.append(dialogo_confirmacao)
+        dialogo_confirmacao.open = True
         page.update()
 
     box_atualizar = ft.Container(
@@ -168,7 +238,7 @@ def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str) -> None:
                     text_align=ft.TextAlign.CENTER,
                 ),
                 ft.Text(
-                    "Curso: XXXX",
+                    f"Curso: {curso}",
                     size=10,
                     color=ft.Colors.WHITE70,
                     text_align=ft.TextAlign.CENTER,
@@ -269,4 +339,3 @@ def show_area_exclusiva_screen(page: ft.Page, jornada: str, curso: str) -> None:
                 break
 
     page.run_task(animar_ponteiro_area_exclusiva)
-

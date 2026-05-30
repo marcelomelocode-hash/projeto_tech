@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-# Estrutura temporária (mock) para votos
+
 VOTOS_MOCK: dict[str, dict[str, int]] = {
     "jornada": {
         "Entusiasta / Curioso": 28,
@@ -27,12 +27,6 @@ VOTOS_MOCK: dict[str, dict[str, int]] = {
 
 
 def calcular_percentuais(votos: dict[str, int]) -> list[tuple[str, int, float]]:
-    """
-    Retorna lista no formato:
-    [(nome_opcao, votos, percentual), ...]
-
-    percentual = (votos_opcao / total_votos) * 100
-    """
     total_votos = sum(votos.values())
     if total_votos <= 0:
         return [(opcao, qtd, 0.0) for opcao, qtd in votos.items()]

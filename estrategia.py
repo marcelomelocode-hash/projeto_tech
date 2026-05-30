@@ -1,7 +1,7 @@
 import asyncio
 import flet as ft
 from cadastroTech import criar_radar
-
+from conexao import conectar, fechar_conexao
 
 def show_estrateguia_screen(page: ft.Page, nome_usuario: str = "") -> None:
     page.clean()
@@ -121,9 +121,12 @@ def show_estrateguia_screen(page: ft.Page, nome_usuario: str = "") -> None:
     async def animar_ponteiro() -> None:
         angulo = 0.0
         while True:
-            angulo += 0.08
-            ponteiro.rotate = ft.Rotate(angulo, alignment=ft.alignment.Alignment(0, 0))
-            page.update()
-            await asyncio.sleep(0.03)
+            try:
+                angulo += 0.08
+                ponteiro.rotate = ft.Rotate(angulo, alignment=ft.alignment.Alignment(0, 0))
+                page.update()
+                await asyncio.sleep(0.03)
+            except Exception:
+                break
 
     page.run_task(animar_ponteiro)

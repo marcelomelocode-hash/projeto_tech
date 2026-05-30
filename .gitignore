@@ -1,11 +1,42 @@
 __pycache__/
 *.py[cod]
+*$py.class
+*.pyo
 
-# Flet/packaging outputs
 build/
 dist/
+*.egg-info/
+*.egg
+*.whl
 
-# IDE/system
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+
 .DS_Store
 Thumbs.db
+desktop.ini
+
+*.log
+
+.env
+.env.local
+.env.production
+
+*.db
+*.sqlite3
+
+flet-build/
+.webserver
+.webserver.pid
+
+local.properties
+gradle-wrapper.jar
+
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
+*.dSYM
